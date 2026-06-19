@@ -1,0 +1,296 @@
+Metadata-Version: 2.4
+Name: cf-cache-audit
+Version: 1.0.0
+Summary: Analyze Cloudflare cache behavior for any website
+Author: cf-cache-audit contributors
+License: MIT
+Keywords: cloudflare,cache,audit,cdn,performance
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: Topic :: System :: Networking :: Monitoring
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: aiohttp<4,>=3.9
+Requires-Dist: beautifulsoup4<5,>=4.12
+Requires-Dist: pydantic<3,>=2.5
+Requires-Dist: rich<14,>=13.7
+Requires-Dist: lxml<6,>=5.1
+Requires-Dist: certifi>=2024.1
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+Requires-Dist: pytest-cov>=4.1; extra == "dev"
+Requires-Dist: aioresponses>=0.7; extra == "dev"
+Requires-Dist: mypy>=1.8; extra == "dev"
+Requires-Dist: ruff>=0.2; extra == "dev"
+
+# cf-cache-audit
+
+> **Analyse a website's assets and determine which are served from Cloudflare cache and which are not.**
+
+`cf-cache-audit` is a production-quality terminal tool that crawls any website, discovers all static assets (images, CSS, JS, fonts, videos, SVGs, manifests…), and validates their Cloudflare cache status. It produces a rich, colour-coded terminal report plus optional JSON and CSV exports.
+
+---
+
+## Features
+
+| Category | Details |
+|---|---|
+| **Crawling** | Recursive page crawl with configurable depth, `robots.txt`, `sitemap.xml` |
+| **Asset Discovery** | Parses `<img>`, `<script>`, `<link>`, `<video>`, `<audio>`, `<source>`, `<iframe>`, inline `style`, `<style>` blocks, CSS `url()` and `@font-face`, JS dynamic imports |
+| **Framework Detection** | Next.js, React, Angular, Vue, WordPress, Drupal, static |
+| **Cloudflare Detection** | `server: cloudflare`, `cf-ray`, `cf-cache-status`, APO, Cache Rules hints |
+| **CDN Detection** | Cloudflare, Akamai, CloudFront, Fastly, Google, Azure, Bunny, StackPath, KeyCDN, Sucuri |
+| **Cache Validation** | HEAD → GET fallback, retry with exponential back-off, rate limiting |
+| **Warm-Cache Testing** | Multi-probe MISS → HIT transition detection |
+| **Reporting** | Rich terminal table, summary panel, JSON export, CSV export |
+| **Performance** | asyncio + aiohttp, configurable concurrency, token-bucket rate limiter |
+
+---
+
+## Installation
+
+### Prerequisites
+
+- **Python 3.12+**
+
+### From source
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/cf-cache-audit.git
+cd cf-cache-audit
+
+# Create virtual environment
+python3.12 -m venv .venv
+source .venv/bin/activate
+
+# Install in editable mode
+pip install -e ".[dev]"
+```
+
+### Quick install (dependencies only)
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Usage
+
+### Basic scan
+
+```bash
+cf-cache-audit https://example.com
+```
+
+### With options
+
+```bash
+cf-cache-audit https://example.com \
+    --depth 2 \
+    --workers 30 \
+    --timeout 20 \
+    --json report.json \
+    --csv report.csv \
+    --verbose
+```
+
+### Warm-cache testing
+
+```bash
+cf-cache-audit https://example.com --warm-cache --warm-cache-attempts 5
+```
+
+### Follow subdomains
+
+```bash
+cf-cache-audit https://example.com --follow-subdomains --depth 1
+```
+
+### As a Python module
+
+```bash
+python -m cf_cache_audit https://example.com
+```
+
+---
+
+## CLI Options
+
+| Option | Default | Description |
+|---|---|---|
+| `url` | *(required)* | Domain name or URL to audit |
+| `--depth N` | `3` | Maximum crawl depth for internal pages |
+| `--timeout N` | `15` | HTTP request timeout in seconds |
+| `--workers N` | `20` | Number of concurrent workers |
+| `--json FILE` | — | Export full report to JSON |
+| `--csv FILE` | — | Export asset data to CSV |
+| `--follow-subdomains` | `false` | Also crawl pages on subdomains |
+| `--warm-cache` | `false` | Test cache warm-up (multiple requests per asset) |
+| `--warm-cache-attempts N` | `3` | Number of probes per asset in warm-cache mode |
+| `--verbose, -v` | `false` | Show detailed messages and debug logging |
+| `--version, -V` | — | Show version and exit |
+
+---
+
+## Example Output
+
+### Cloudflare Detection
+
+```
+┌─── ☁  Cloudflare Detection ──────────────────────┐
+│                                                    │
+│  Cloudflare detected: ✔ YES                        │
+│    Server header : cloudflare                      │
+│    CF-Ray        : present                         │
+│    APO           : ✔ detected                      │
+│                                                    │
+└────────────────────────────────────────────────────┘
+```
+
+### Asset Table
+
+```
+┌─────────────────── Asset Cache Status Report ───────────────────────┐
+│ #   │ URL                         │ TYPE   │ STATUS │ CF CACHE │ …  │
+├─────┼─────────────────────────────┼────────┼────────┼──────────┼────┤
+│   1 │ /css/main.css               │ css    │ 200    │ MISS     │ ⚠  │
+│   2 │ /js/app.js                  │ js     │ 200    │ HIT      │ ✔  │
+│   3 │ /img/logo.svg               │ svg    │ 200    │ DYNAMIC  │ ⚠  │
+│   4 │ /fonts/inter.woff2          │ font   │ 200    │ HIT      │ ✔  │
+└─────┴─────────────────────────────┴────────┴────────┴──────────┴────┘
+```
+
+### Summary
+
+```
+┌─── 📊  Audit Summary ────────────────────────────┐
+│                                                    │
+│  Total assets      : 156                           │
+│  Cacheable assets  : 143                           │
+│                                                    │
+│  HIT              : 121                            │
+│  MISS             : 11                             │
+│  DYNAMIC          : 9                              │
+│  BYPASS           : 2                              │
+│                                                    │
+│  Hit ratio        : 84.6%                          │
+│                                                    │
+│  Framework        : nextjs                         │
+│                                                    │
+└────────────────────────────────────────────────────┘
+```
+
+---
+
+## JSON Report Structure
+
+```json
+{
+  "website": "https://example.com",
+  "scan_started": "2026-06-19T07:00:00Z",
+  "scan_finished": "2026-06-19T07:00:45Z",
+  "cloudflare": {
+    "detected": true,
+    "cf_ray_present": true,
+    "server_header": "cloudflare",
+    "apo_detected": false,
+    "cache_rules_hints": [],
+    "additional_notes": []
+  },
+  "summary": {
+    "total_assets": 156,
+    "cacheable_assets": 143,
+    "hit": 121,
+    "miss": 11,
+    "dynamic": 9,
+    "hit_ratio": 84.6
+  },
+  "assets": [
+    {
+      "url": "https://example.com/css/main.css",
+      "asset_type": "css",
+      "http_status": 200,
+      "content_type": "text/css",
+      "cf_cache_status": "HIT",
+      "is_cacheable": true,
+      "audit_result": "PASS",
+      "audit_message": "Served from cache"
+    }
+  ]
+}
+```
+
+---
+
+## Project Structure
+
+```
+cf-cache-audit/
+├── cf_cache_audit/
+│   ├── __init__.py         # Package metadata
+│   ├── __main__.py         # python -m entry point
+│   ├── cli.py              # CLI argument parsing & orchestration
+│   ├── crawler.py          # Async website crawler
+│   ├── analyzer.py         # Cache status validation & warm-cache testing
+│   ├── cloudflare.py       # Cloudflare & CDN detection
+│   ├── reporter.py         # Rich terminal output & JSON/CSV export
+│   ├── models.py           # Pydantic models & enumerations
+│   └── utils.py            # URL helpers, classification, rate limiter
+├── tests/
+│   ├── test_models.py      # Model & serialisation tests
+│   ├── test_utils.py       # URL normalisation, classification tests
+│   ├── test_cloudflare.py  # Header detection tests
+│   ├── test_crawler.py     # HTML parsing & framework detection tests
+│   └── test_analyzer.py    # Summary computation tests
+├── pyproject.toml          # PEP 621 project configuration
+├── requirements.txt        # Dependency pins
+└── README.md               # This file
+```
+
+---
+
+## Development
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest -v
+
+# Run tests with coverage
+pytest --cov=cf_cache_audit --cov-report=term-missing
+
+# Type checking
+mypy cf_cache_audit/
+
+# Linting
+ruff check cf_cache_audit/
+```
+
+---
+
+## Error Handling
+
+The tool gracefully handles:
+
+- **DNS failures** — reports error and continues
+- **SSL errors** — falls back with appropriate logging
+- **Redirect loops** — aiohttp's redirect limit catches these
+- **403 / 404 responses** — recorded as HTTP errors in the report
+- **Timeout errors** — retried with exponential back-off
+- **Invalid URLs** — filtered during normalisation
+
+---
+
+## License
+
+MIT

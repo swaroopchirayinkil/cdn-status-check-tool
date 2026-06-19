@@ -1,0 +1,16 @@
+# Core dependencies
+aiohttp>=3.9,<4
+beautifulsoup4>=4.12,<5
+pydantic>=2.5,<3
+rich>=13.7,<14
+lxml>=5.1,<6
+certifi>=2024.1
+openpyxl>=3.1,<4
+
+# Development dependencies
+pytest>=8.0
+pytest-asyncio>=0.23
+pytest-cov>=4.1
+aioresponses>=0.7
+mypy>=1.8
+ruff>=0.2

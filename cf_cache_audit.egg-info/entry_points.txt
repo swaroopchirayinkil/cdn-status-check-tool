@@ -1,0 +1,2 @@
+[console_scripts]
+cf-cache-audit = cf_cache_audit.cli:main
