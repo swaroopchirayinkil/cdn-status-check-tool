@@ -80,35 +80,118 @@ For JavaScript files, it performs best-effort extraction of:
 
 ## Installation
 
-### Prerequisites
+### Fresh Ubuntu Machine — Step by Step
 
-- **Python 3.12** or newer
-- **pip** (Python package manager)
+If you've just cloned the repo on a new Ubuntu machine, follow these steps exactly:
 
-### Option 1: Install from source (recommended)
+#### Step 1: Install system dependencies
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/cf-cache-audit.git
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip python3-dev git
+```
+
+> **Why?** Ubuntu doesn't ship with `python3-venv` by default. Without it, `python3 -m venv` will fail with:
+> `The virtual environment was not created successfully because ensurepip is not available.`
+
+If you specifically need Python 3.12 and your Ubuntu version ships an older Python:
+
+```bash
+sudo apt install -y software-properties-common
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install -y python3.12 python3.12-venv python3.12-dev
+```
+
+#### Step 2: Clone the repository
+
+```bash
+git clone https://github.com/YOUR-USERNAME/cf-cache-audit.git
 cd cf-cache-audit
+```
 
-# Create a virtual environment
-python3.12 -m venv .venv
-source .venv/bin/activate    # Linux / macOS
-# .venv\Scripts\activate     # Windows
+#### Step 3: Create a virtual environment
 
-# Install the tool (editable mode with dev dependencies)
+```bash
+python3 -m venv .venv
+```
+
+> **If this fails** with the `ensurepip` error, go back to Step 1 and install `python3-venv`.
+>
+> **If you have multiple Python versions**, use the specific one:
+> ```bash
+> python3.12 -m venv .venv
+> ```
+
+#### Step 4: Activate the virtual environment
+
+```bash
+source .venv/bin/activate
+```
+
+Your prompt should now show `(.venv)` at the beginning. **You need to run this every time you open a new terminal.**
+
+#### Step 5: Install the tool
+
+```bash
+pip install --upgrade pip
 pip install -e ".[dev]"
 ```
 
-After installation, the `cf-cache-audit` command is available globally within the virtual environment.
+This installs `cf-cache-audit` as a command plus all its dependencies (`aiohttp`, `beautifulsoup4`, `rich`, `pydantic`, `openpyxl`, etc.) and development tools (`pytest`, `mypy`, `ruff`).
 
-### Option 2: Install dependencies only
+#### Step 6: Verify it works
 
 ```bash
-pip install -r requirements.txt
-python -m cf_cache_audit --help
+cf-cache-audit --version
 ```
+
+You should see: `cf-cache-audit 1.0.0`
+
+#### Step 7: Run a scan
+
+```bash
+cf-cache-audit https://example.com --xlsx report.xlsx
+```
+
+---
+
+### One-Command Setup (setup.sh)
+
+If you prefer, the repo includes a setup script that does everything automatically:
+
+```bash
+git clone https://github.com/YOUR-USERNAME/cf-cache-audit.git
+cd cf-cache-audit
+bash setup.sh
+```
+
+The script will:
+1. Install system packages (`python3`, `python3-venv`, `python3-pip`)
+2. Find Python 3.12+
+3. Create the virtual environment
+4. Install all dependencies
+5. Run the test suite to verify everything works
+
+After it finishes, activate the venv and you're ready:
+
+```bash
+source .venv/bin/activate
+cf-cache-audit https://example.com
+```
+
+---
+
+### Common Installation Errors
+
+| Error | Cause | Fix |
+|---|---|---|
+| `ensurepip is not available` | `python3-venv` package not installed | `sudo apt install python3-venv` (or `python3.12-venv` for specific versions) |
+| `No module named pip` | pip not installed | `sudo apt install python3-pip` |
+| `externally-managed-environment` | Trying to pip install without a venv (Ubuntu 23.04+) | Create a venv first: `python3 -m venv .venv && source .venv/bin/activate` |
+| `error: subprocess-exited-with-error` during `lxml` install | Missing C compiler or libxml2 | `sudo apt install python3-dev libxml2-dev libxslt1-dev` |
+| `ModuleNotFoundError: No module named 'cf_cache_audit'` | Tool not installed or venv not activated | `source .venv/bin/activate && pip install -e .` |
+| `command not found: cf-cache-audit` | Venv not activated | `source .venv/bin/activate` |
 
 ### Dependencies
 
@@ -535,6 +618,8 @@ cf-cache-audit/
 │   ├── test_cloudflare.py  # Header detection, APO, CDN fingerprinting
 │   ├── test_crawler.py     # HTML parsing, srcset, framework detection
 │   └── test_analyzer.py    # Summary computation, CDN breakdown
+├── setup.sh                # One-command setup for fresh Ubuntu machines
+├── .gitignore              # Excludes venv, caches, reports from git
 ├── pyproject.toml          # PEP 621 project config (dependencies, scripts, tools)
 ├── requirements.txt        # Dependency pins for quick install
 └── README.md               # This file
