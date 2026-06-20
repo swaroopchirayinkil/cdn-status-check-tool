@@ -24,13 +24,30 @@ fi
 ok "Project root detected."
 
 # ── 2. Install system dependencies ──────────────────────────
-info "Installing system packages (python3, python3-venv, python3-pip) …"
-if command -v apt-get &>/dev/null; then
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq python3 python3-venv python3-pip python3-dev >/dev/null 2>&1
-    ok "System packages installed."
+# Check if python3 and venv are already available — skip apt if so.
+NEED_APT=false
+if ! command -v python3 &>/dev/null; then
+    NEED_APT=true
+elif ! python3 -m venv --help &>/dev/null 2>&1; then
+    NEED_APT=true
+fi
+
+if $NEED_APT; then
+    info "Installing system packages (python3, python3-venv, python3-pip) …"
+    if command -v apt-get &>/dev/null; then
+        # Use || true so broken third-party repos don't abort the script
+        sudo apt-get update -qq 2>&1 || warn "apt update had errors (broken third-party repos?). Continuing anyway …"
+        sudo apt-get install -y -qq python3 python3-venv python3-pip python3-dev 2>&1 || {
+            warn "apt install failed. Trying to continue — if Python 3.12+ and python3-venv"
+            warn "are already installed, setup will still work."
+        }
+        ok "System packages step done."
+    else
+        warn "apt-get not found — skipping system package install."
+        warn "Make sure Python 3.12+ and python3-venv are installed manually."
+    fi
 else
-    warn "apt-get not found — skipping system package install. Make sure Python 3.12+ and python3-venv are installed."
+    ok "python3 and venv already available — skipping apt."
 fi
 
 # ── 3. Verify Python version ────────────────────────────────
