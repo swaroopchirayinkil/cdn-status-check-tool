@@ -260,7 +260,8 @@ def print_summary(summary: AuditSummary) -> None:
         for cdn, count in sorted(
             summary.cdn_breakdown.items(), key=lambda x: -x[1]
         ):
-            lines.append(f"    {cdn:<16}: {count}")
+            cdn_str = cdn.value if hasattr(cdn, 'value') else str(cdn)
+            lines.append(f"    {cdn_str:<16}: {count}")
 
     panel = Panel(
         "\n".join(lines),
